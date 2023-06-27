@@ -324,6 +324,7 @@ PRINTF=$(command -v printf)
 SED=$(command -v sed)
 MKTEMP=$(command -v mktemp)
 FIND=$(command -v find)
+TR=$(command -v tr)
 
 # Try to find a mail client
 if [ -f /usr/bin/mailx ]; then
@@ -487,7 +488,7 @@ date_diff()
 # Arguments:
 #   $1 -> Hostname
 #   $2 -> TCP Port
-#   $3 -> Status of certification (e.g., expired or valid)
+#   $3 -> Status of certification (e.g., expired or valid or unknown)
 #   $4 -> Date when certificate will expire
 #   $5 -> Days left until the certificate will expire
 #   $6 -> Issuer of the certificate
@@ -500,8 +501,12 @@ prints()
         return
     fi
     
-    if [ "${QUIET}" != "TRUE" ]  && [ "${ISSUER}" != "TRUE" ] ; then
-	${PRINTF} "%-35s %-12s %s\n" "$1:$2" "$3" "$4"
+    if [ "${QUIET}" != "TRUE" ]  && [ "${3}" = "Unknown" ] ; then
+	if [ "${VALIDATION}" = "TRUE" ] ; then 
+		${PRINTF} "%-35s %-12s %s\n" "$1:$2" "$3" "$4"
+	else
+		${PRINTF} "%-47s %-12s %s\n" "$1:$2" "$3" "$4"
+	fi
     elif [ "${QUIET}" != "TRUE" ] && [ "${ISSUER}" = "TRUE" ] && [ "${VALIDATION}" != "TRUE" ]; then
         MIN_DATE=$(echo "$4" | "${AWK}" '{ printf "%3s %2d %4d", $1, $2, $4 }')
         if [ "${NAGIOS}" = "TRUE" ]; then
@@ -704,7 +709,7 @@ check_server_status() {
         prints "${1}" "${2}" "Unable to resolve the DNS name ${1}" "Unknown"
         set_returncode 3
     elif [ ! -s "${CERT_TMP}" ] ; then 
-        prints "${1}" "${2}" "$( echo $( < ${ERROR_TMP}) ) " "Unknown" 
+        prints "${1}" "${2}" "Unknown" "$( "${TR}" '[:space:]' ' ' < "${ERROR_TMP}" ) "
         set_returncode 3
     else
         check_file_status "${CERT_TMP}" "${1}" "${2}"
