@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-PROGRAMVERSION=4.14
+PROGRAMVERSION=4.15
 #
 # Program: SSL Certificate Check <ssl-cert-check>
 #
@@ -9,9 +9,13 @@ PROGRAMVERSION=4.14
 #
 # Author: Matty < matty at prefetch dot net >
 #
-# Last Updated: 11-12-2020
+# Last Updated: 06-26-2023
 #
 # Revision History:
+#
+# Version 4.15
+#  - Added error handling for uncaught expceptions to dump the 
+#    contents of STDERR -- .\\auro .\\arzorati
 #
 # Version 4.14
 #  - Fixed HOST / PORT discovery @mhow2
@@ -495,8 +499,10 @@ prints()
     if [ "${NAGIOSSUMMARY}" = "TRUE" ]; then
         return
     fi
-
-    if [ "${QUIET}" != "TRUE" ] && [ "${ISSUER}" = "TRUE" ] && [ "${VALIDATION}" != "TRUE" ]; then
+    
+    if [ "${QUIET}" != "TRUE" ]  && [ "${ISSUER}" != "TRUE" ] ; then
+	${PRINTF} "%-35s %-12s %s\n" "$1:$2" "$3" "$4"
+    elif [ "${QUIET}" != "TRUE" ] && [ "${ISSUER}" = "TRUE" ] && [ "${VALIDATION}" != "TRUE" ]; then
         MIN_DATE=$(echo "$4" | "${AWK}" '{ printf "%3s %2d %4d", $1, $2, $4 }')
         if [ "${NAGIOS}" = "TRUE" ]; then
             ${PRINTF} "%-35s %-17s %-8s %-11s %s\n" "$1:$2" "$6" "$3" "$MIN_DATE" "|days=$5"
@@ -696,6 +702,9 @@ check_server_status() {
         set_returncode 3
     elif "${GREP}" -i "Name or service not known" "${ERROR_TMP}" > /dev/null; then
         prints "${1}" "${2}" "Unable to resolve the DNS name ${1}" "Unknown"
+        set_returncode 3
+    elif [ ! -s "${CERT_TMP}" ] ; then 
+        prints "${1}" "${2}" "$( echo $( < ${ERROR_TMP}) ) " "Unknown" 
         set_returncode 3
     else
         check_file_status "${CERT_TMP}" "${1}" "${2}"
